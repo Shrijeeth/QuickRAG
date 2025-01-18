@@ -121,8 +121,8 @@ if page == "Upload PDF & Generate Embeddings":
                 files = {"file": uploaded_file}
                 data = {
                     "embedding_model_name": embedding_model_name,
-                    "api_key": st.session_state.api_credentials[embedding_credentials][
-                        "api_key"
+                    "embedding_args": st.session_state.api_credentials[
+                        embedding_credentials
                     ],
                 }
                 try:

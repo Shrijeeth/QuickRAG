@@ -1,0 +1,14 @@
+aiofiles==24.1.0
+black==24.10.0
+haystack-ai==2.9.0
+fastapi==0.115.6
+ollama-haystack==2.2.0
+pydantic==2.10.5
+pydantic-settings==2.7.1
+pylint==3.3.3
+pytest==8.3.4
+pytest-asyncio==0.25.2
+pytest-cov==6.0.0
+python-dotenv==1.0.1
+qdrant-haystack==7.0.0
+uvicorn==0.34.0

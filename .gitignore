@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*$py.class
+
+# Environment Files
+*.env
+
+# Virtual Environment
+venv/
+
+# Code Editor Files
+.vscode/
+.idea/
+.windsurf/
+
+# Coverage Files
+*.coverage
+coverage/
+
+# Key Files
+*.pem
+
+# Deployment Files
+docker-compose.yml
