@@ -5,6 +5,10 @@ import json
 import streamlit as st
 import requests
 from dotenv import load_dotenv
+from streamlit_cookies_manager import EncryptedCookieManager
+
+# Streamlit page configuration
+st.set_page_config(page_title="PDF Q&A App", layout="wide")
 
 # Load environment variables
 load_dotenv()
@@ -12,9 +16,13 @@ load_dotenv()
 # Backend URL and secrets
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 SECRET_KEY = os.getenv("SECRET_KEY")
+COOKIE_PASSWORD = os.getenv("COOKIE_PASSWORD", "my_secure_password")
 
-# Streamlit page configuration
-st.set_page_config(page_title="PDF Q&A App", layout="wide")
+# Initialize cookies manager
+cookies = EncryptedCookieManager(prefix="pdf_qa_app", password=COOKIE_PASSWORD)
+if not cookies.ready():
+    st.spinner()
+    st.stop()
 
 # Define pages
 PAGES = {
@@ -29,7 +37,7 @@ page = st.sidebar.radio("Go to", list(PAGES.keys()))
 
 # Global state
 if "api_credentials" not in st.session_state:
-    st.session_state.api_credentials = {}
+    st.session_state.api_credentials = json.loads(cookies.get("api_credentials", "{}"))
 
 if "pdf_content" not in st.session_state:
     st.session_state.pdf_content = None
@@ -280,12 +288,20 @@ elif page == "Credentials":
             elif provider == "Ollama" and not creds["url"]:
                 st.warning("Please provide the URL for Ollama.")
             else:
-                # Save credentials in session state
-                st.session_state.api_credentials[f"{provider}_key"] = {
+                # Save credentials in session state and cookies
+                credential_key = f"{provider}_key"
+                st.session_state.api_credentials[credential_key] = {
                     "provider": provider,
                     **creds,
                 }
-                st.success(f"Added credentials for {provider}.")
+
+                # Save all credentials in cookies
+                cookies["api_credentials"] = json.dumps(
+                    st.session_state.api_credentials
+                )
+                st.success(
+                    f"Added credentials for {provider} and stored them in cookies."
+                )
 
     # Display existing credentials
     if st.session_state.api_credentials:
@@ -298,3 +314,6 @@ elif page == "Credentials":
                 )
             elif val["provider"] == "Ollama":
                 st.write(f"**Ollama:** URL: {val['url']}")
+
+# Save cookies
+cookies.save()
