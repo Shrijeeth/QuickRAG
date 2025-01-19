@@ -1,6 +1,7 @@
 # pylint: disable=line-too-long,invalid-name
 
 import os
+import json
 import streamlit as st
 import requests
 from dotenv import load_dotenv
@@ -120,21 +121,23 @@ if page == "Upload PDF & Generate Embeddings":
                 # Send file, embedding model, and credentials to backend
                 files = {"file": uploaded_file}
                 data = {
+                    "provider_name": selected_provider,
                     "embedding_model_name": embedding_model_name,
-                    "embedding_args": st.session_state.api_credentials[
-                        embedding_credentials
-                    ],
+                    "embedding_args": json.dumps(
+                        st.session_state.api_credentials[embedding_credentials]
+                    ),
                 }
                 try:
                     response = requests.post(
                         f"{BACKEND_URL}/upload-and-generate-embeddings/",
                         files=files,
                         data=data,
+                        headers={"x-api-key": SECRET_KEY},
                         timeout=30,  # Added timeout
                     )
                     response.raise_for_status()
                     result = response.json()
-                    st.session_state.pdf_content = result["content"]
+                    st.session_state.pdf_content = result
                     st.session_state.embedding_model_name = embedding_model_name
                     st.session_state.selected_credentials["embedding"] = (
                         embedding_credentials
@@ -226,27 +229,72 @@ elif page == "Q&A Chat":
 elif page == "Credentials":
     st.title("Manage API Credentials")
 
-    # Add new credentials
+    # Initialize session state for provider selection
+    if "selected_provider" not in st.session_state:
+        st.session_state.selected_provider = None
+
+    # Provider selection with dynamic UI
+    provider = st.selectbox(
+        "Provider Name",
+        options=PROVIDERS.keys(),
+        key="selected_provider",
+        on_change=lambda: st.session_state.pop("provider_creds", None),
+    )
+
+    # Form for adding credentials
     with st.form("add_credentials_form"):
         st.subheader("Add New API Credentials")
-        provider = st.selectbox("Provider Name", options=PROVIDERS.keys())
-        api_key = st.text_input("API Key", type="password")
+        creds = {}
+
+        if provider == "OpenAI":
+            api_key = st.text_input(
+                "API Key",
+                type="password",
+                help="Your OpenAI API Key",
+                key="openai_api_key",
+            )
+            url = st.text_input(
+                "URL (Optional)",
+                value="https://api.openai.com/v1",
+                help="OpenAI API base URL. Default is pre-filled.",
+                key="openai_url",
+            )
+            creds = {"api_key": api_key, "url": url}
+
+        elif provider == "Ollama":
+            url = st.text_input(
+                "URL (Mandatory)",
+                value="http://localhost:11434",
+                help="The base URL for Ollama. Provide the complete URL.",
+                key="ollama_url",
+            )
+            creds = {"url": url}
+
+        # Submit button
         submitted = st.form_submit_button("Add Credentials")
 
         if submitted:
-            if provider and api_key:
+            # Validate inputs based on the provider
+            if provider == "OpenAI" and not creds["api_key"]:
+                st.warning("Please provide the API Key for OpenAI.")
+            elif provider == "Ollama" and not creds["url"]:
+                st.warning("Please provide the URL for Ollama.")
+            else:
+                # Save credentials in session state
                 st.session_state.api_credentials[f"{provider}_key"] = {
                     "provider": provider,
-                    "api_key": api_key,
+                    **creds,
                 }
                 st.success(f"Added credentials for {provider}.")
-            else:
-                st.warning("Please fill in both fields.")
 
     # Display existing credentials
     if st.session_state.api_credentials:
         st.subheader("Existing Credentials")
         for key, val in st.session_state.api_credentials.items():
-            st.write(
-                f"**{val['provider']}:** {val['api_key'][:4]}{'*' * (len(val['api_key']) - 4)}"
-            )  # Mask the key for security
+            if val["provider"] == "OpenAI":
+                st.write(
+                    f"**OpenAI:** API Key: {val['api_key'][:4]}{'*' * (len(val['api_key']) - 4)}",
+                    f"(URL: {val.get('url', 'Default')})",
+                )
+            elif val["provider"] == "Ollama":
+                st.write(f"**Ollama:** URL: {val['url']}")
